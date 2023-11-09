@@ -3,17 +3,19 @@ import socketserver
 import json
 import mysql.connector
 
-
 PORT = 8000
 
-
-def get_all_users():
+def create_conection():
     connection = mysql.connector.connect(
         host='localhost',
         user='root',
         password='root',
         database="byee_database"
     )
+    return connection
+
+def get_all_users():
+    connection = create_conection()
     cursor = connection.cursor(dictionary=True)
     cursor.execute('SELECT * FROM Usuario')
     users = cursor.fetchall()
@@ -22,12 +24,7 @@ def get_all_users():
     return users
 
 def get_all_products():
-    connection = mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='root',
-        database="byee_database"
-    )
+    connection = create_conection()
     cursor = connection.cursor(dictionary=True)
     cursor.execute('SELECT * FROM Produto')
     products = cursor.fetchall()
@@ -36,20 +33,13 @@ def get_all_products():
     return products
 
 def create_product(product_data):
-    connection = mysql.connector.connect(
-        host='localhost',
-        user='root',
-        password='root',
-        database="byee_database"
-    )
+    connection = create_conection()
     cursor = connection.cursor(dictionary=True)
     
-    # Utilize a passagem de parâmetros para evitar injeção de SQL
     query = '''INSERT INTO Produto 
-               (id, nome, tipo, preco, SKU, fk_Usuario_vendedor_fk) 
-               VALUES (%s, %s, %s, %s, %s, %s)'''
+               (nome, tipo, preco, SKU, fk_Usuario_vendedor_fk) 
+               VALUES (%s, %s, %s, %s, %s)'''
     values = (
-        product_data["id"], 
         product_data["nome"], 
         product_data["tipo"], 
         product_data["preco"], 
@@ -61,8 +51,7 @@ def create_product(product_data):
     connection.commit()
     cursor.close()
     connection.close()
-    return product_data["id"]
-
+    return True
 
 class RequestHandler(http.server.BaseHTTPRequestHandler):
 
@@ -95,11 +84,10 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             product_data = json.loads(post_data)
 
-            # Insira o usuário no banco de dados
-            user_id = create_product(product_data)
-            if user_id:
+            product_id = create_product(product_data)
+            if product_id:
                 self._set_headers(201)
-                self.wfile.write(json.dumps({'id': user_id}).encode())
+                self.wfile.write(json.dumps({'id': product_id}).encode())
             else:
                 self._set_headers(400)
         else:
